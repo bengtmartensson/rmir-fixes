@@ -8,9 +8,14 @@ DOWNLOAD=/tmp/rmir$$.zip
 
 fixdesktop()
 {
-    TEMPFILE=/tmp/${1}$$
-    sed -e "s|Exec=.*|Exec=${BIN}/${2}|" -e "s/Categories=.*/Categories=AudioVideo;Java;/" < ${DESKTOPDIR}/$1.desktop > ${TEMPFILE}
-    mv ${TEMPFILE} ${DESKTOPDIR}/$1.desktop
+    sed -e "s|Exec=.*|Exec=${BIN}/${2}|" -e "s/Categories=.*/Categories=AudioVideo;Java;/" "${RMHOME}/$1.desktop" > ${DESKTOPDIR}/$1.desktop
+}
+
+mklink()
+{
+    if [ $(readlink -f -- "$2") != "$1" ] ; then
+	ln -sf "$1" "$2"
+    fi
 }
 
 HERE="$(dirname -- "$(readlink -f -- "${0}")" )"
@@ -36,11 +41,12 @@ if [ -f "$ZIP" ] ; then
 fi
 
 install ${HERE}/rmir.sh ${RMHOME}
-ln -sf ${RMHOME}/rmir.sh ${BIN}/rmir
-ln -sf ${RMHOME}/rmir.sh ${BIN}/remotemaster
-ln -sf ${RMHOME}/rmir.sh ${BIN}/rmdu
-ln -sf ${RMHOME}/rmir.sh ${BIN}/rmpb
 
-fixdesktop RemoteMaster remotemaster
+mklink ${RMHOME}/rmir.sh ${BIN}/rmir
+mklink ${RMHOME}/rmir.sh ${BIN}/remotemaster
+mklink ${RMHOME}/rmir.sh ${BIN}/rmdu
+mklink ${RMHOME}/rmir.sh ${BIN}/rmpb
+
+fixdesktop RMDU rmdu
 fixdesktop RMIR rmir
 fixdesktop RMPB rmpb
