@@ -28,8 +28,6 @@ export RMHOME="$(dirname -- "$(readlink -f -- "${0}")" )"
 
 CACHE_HOME=${HOME}/.cache/rmir
 CONFIG_HOME=${HOME}/.config/rmir
-RDFS=${RMHOME}/RDF
-MAPS=${RMHOME}/Images
 
 if [ ! -d ${CONFIG_HOME} ] ; then
     mkdir -p ${CONFIG_HOME}
@@ -42,10 +40,6 @@ fi
 # Normally, no changes below this line is necessary
 
 CONFIG=${CONFIG_HOME}/properties
-if [ ! -f ${CONFIG} ] ; then
-    echo RDFPath=${RDFS}    > ${CONFIG}
-    echo ImagePath=${MAPS} >> ${CONFIG}
-fi
 
 if [ `basename $0` = "rmir" ] ; then
     ARG=-ir
