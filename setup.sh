@@ -2,7 +2,7 @@
 
 # Script for downloading and installing of RMIR
 #
-# Author: Bengt Martensson
+# Author: Bengt Martensson, barf@bengt-martensson.de
 # License: public domain
 
 # Where the files go, modify if desired
@@ -72,7 +72,9 @@ else
     ARG=-rm
 fi
 
-FILES=\$(realpath "\$@")
+if [ $# -gt 0 ] ; then
+    FILES=\$(realpath "\$@")
+fi
 
 cd "\$RMHOME"
 
