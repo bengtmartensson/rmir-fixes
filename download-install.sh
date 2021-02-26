@@ -153,11 +153,11 @@ if [ ! -d "${RMHOME}" ] ; then
 fi
 
 cd "${RMHOME}" || exit 1
-rm -rf *
-unzip -q "${ZIP}"
+rm -rf * || exit 1
+unzip -q "${ZIP}" || exit 1
 
-# Invoke RMIR's setup.
-sh ./setup.sh
+# Invoke RMIR's setup. If it fails, bail out.
+sh ./setup.sh || exit 1
 
 mkwrapper
 
@@ -169,3 +169,14 @@ mklink ${RMHOME}/rmir.sh ${LINKDIR}/rmpb
 fixdesktop RMDU rmdu
 fixdesktop RMIR rmir
 fixdesktop RMPB rmpb
+
+# URC6440/OARUSB04G support
+if ! grep -i urc6440 /etc/fstab >/dev/null ; then
+    echo "If using URC6440/OARUSB04G, see http://www.hifi-remote.com/forums/viewtopic.php?t=102592"
+fi
+
+# XSight support
+if [ ! -f /etc/udev/rules.d/linux_xsight.rules ] ; then
+    echo "If using XSight, consider adding udev rules for XSight with the command:"
+    echo "sudo cp ${RMHOME}/linux_xsight.rules /etc/udev/rules.d"
+fi
