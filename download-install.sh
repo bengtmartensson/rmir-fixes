@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 # Script for downloading and installing of RMIR
 #
@@ -7,11 +7,19 @@
 
 # Where the files are installed, modify if desired.
 # Can be overridden from the command line.
-RMHOME=/usr/local/share/rmir
+if [ $(id -u) -eq 0 ] ; then
+    RMHOME=/usr/local/share/rmir
+else
+    RMHOME=${HOME}/rmir
+fi
 
 # Where the executable links go-
 # Can be overridden from the command line.
-LINKDIR=/usr/local/bin
+if [ $(id -u) -eq 0 ] ; then
+    LINKDIR=/usr/local/bin
+else
+    LINKDIR=${HOME}/bin
+fi
 
 # Command to invoke the Java JVM. Can be an absolute or relative file name,
 # or a command sought in the PATH.
@@ -149,7 +157,7 @@ if [ -z ${ZIP} ] ; then
 fi
 
 if [ ! -d "${RMHOME}" ] ; then
-    mkdir "${RMHOME}" || exit 1
+    mkdir -p "${RMHOME}" || exit 1
 fi
 
 cd "${RMHOME}" || exit 1
@@ -160,6 +168,10 @@ unzip -q "${ZIP}" || exit 1
 sh ./setup.sh || exit 1
 
 mkwrapper
+
+if [ ! -d ${LINKDIR} ] ; then
+    mkdir -p ${LINKDIR} || exit 1
+fi
 
 mklink ${RMHOME}/rmir.sh ${LINKDIR}/rmir
 mklink ${RMHOME}/rmir.sh ${LINKDIR}/remotemaster
