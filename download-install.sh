@@ -5,21 +5,21 @@
 # Author: Bengt Martensson, barf@bengt-martensson.de
 # License: public domain
 
+PROJECT=rmir
+COMMANDS="rmir rmdu rmpb"
+
 # Where the files are installed, modify if desired.
 # Can be overridden from the command line.
 if [ $(id -u) -eq 0 ] ; then
-    RMHOME=/usr/local/share/rmir
+    PREFIX=/usr/local
 else
-    RMHOME=${HOME}/rmir
+    PREFIX=${HOME}
 fi
+RMHOME=${PREFIX}/share/${PROJECT}
 
-# Where the executable links go-
+# Where the executable links go.
 # Can be overridden from the command line.
-if [ $(id -u) -eq 0 ] ; then
-    LINKDIR=/usr/local/bin
-else
-    LINKDIR=${HOME}/bin
-fi
+LINKDIR=${PREFIX}/bin
 
 # Command to invoke the Java JVM. Can be an absolute or relative file name,
 # or a command sought in the PATH.
@@ -31,30 +31,39 @@ JAVA=java
 # Can be overridden from the command line.
 SCALE_FACTOR=1
 
-# Where the desktop files go, change only if you know what you are doing
-DESKTOPDIR=$HOME/.local/share/applications
+# Where the desktop files go
+if [ $(id -u) -eq 0 ] ; then
+    DESKTOPDIR=${PREFIX}/share/applications
+else
+    DESKTOPDIR=${PREFIX}/.local/share/applications
+fi
 
-# Should probably not change
+# URL for downloading current version.
 URL=https://sourceforge.net/projects/controlremote/files/latest/download
 
-# Should probably not change
-DOWNLOAD=/tmp/rmir$$.zip
+# Temporary file to download to
+DOWNLOAD=${TMPDIR:-/tmp}/${PROJECT}$$.zip
+
+# Generated wrapper
+WRAPPER=${RMHOME}/${PROJECT}.sh
 
 fixdesktop()
 {
-    sed -e "s|Exec=.*|Exec=${LINKDIR}/${2}|" -e "s/Categories=.*/Categories=AudioVideo;/" "${RMHOME}/$1.desktop" > ${DESKTOPDIR}/$1.desktop
+    upper="$(echo $1 | tr '[a-z]' '[A-Z]')"
+    sed -e "s|Exec=.*|Exec=${LINKDIR}/${1}|" -e "s/Categories=.*/Categories=AudioVideo;/" "${RMHOME}/$upper.desktop" > ${DESKTOPDIR}/$upper.desktop
 }
 
 mklink()
 {
-    if [ $(readlink -f -- "$2") != "$1" ] ; then
-	ln -sf "$1" "$2"
+    if [ $(readlink -f -- "$1") != "${WRAPPER}" ] ; then
+	ln --symbolic --force $(realpath --relative-to="${LINKDIR}" "${WRAPPER}") "${LINKDIR}/$1"
+        echo "Command $1 created."
     fi
 }
 
 mkwrapper()
 {
-    cat > ${RMHOME}/rmir.sh <<EOF
+    cat > ${WRAPPER} <<EOF
 #!/bin/sh
 #
 # Wrapper for RMDU/RMIR/RMPB on Unix-like system
@@ -72,8 +81,8 @@ export RMHOME="\$(dirname -- "\$(readlink -f -- "\${0}")" )"
 XDG_CONFIG_HOME=\${XDG_CONFIG_HOME:-\${HOME}/.config}
 XDG_CACHE_HOME=\${XDG_CACHE_HOME:-\${HOME}/.cache}
 
-CACHE_HOME=\${XDG_CACHE_HOME}/rmir
-CONFIG_HOME=\${XDG_CONFIG_HOME}/rmir
+CACHE_HOME=\${XDG_CACHE_HOME}/${PROJECT}
+CONFIG_HOME=\${XDG_CONFIG_HOME}/${PROJECT}
 
 if [ ! -d "\${CONFIG_HOME}" ] ; then
     mkdir -p "\${CONFIG_HOME}"
@@ -84,7 +93,7 @@ fi
 
 CONFIG=\${CONFIG_HOME}/properties
 
-if [ "\$(basename "\$0")" = "rmir" ] ; then
+if [ "\$(basename "\$0")" = "rmir" -o "\$(basename "\$0")" = "rmir.sh" ] ; then
     ARG=-ir
 elif [ "\$(basename "\$0")" = "rmpb" ] ; then
     ARG=-pb
@@ -105,7 +114,8 @@ exec "\${JAVA}" \${SCALE_ARG} -Djava.library.path="\${RMHOME}" \\
      \${FILES}
 EOF
 
-    chmod +x ${RMHOME}/rmir.sh
+    chmod +x ${WRAPPER}
+    echo "Created wrapper ${WRAPPER}."
 }
 
 usage()
@@ -123,6 +133,7 @@ usage()
     echo "    -s, --scale scale-factor          scale factor for the GUI, default ${SCALE_FACTOR}. Not supported by all JVMs."
     echo "    -h, --rmhome RM-install-dir       Directory in which to install, default ${RMHOME}."
     echo "    -l, --link directory-for-links    Directory in which to create start links, default ${LINKDIR}."
+    echo "    -u, --uninstall                   Undo previous installation."
     echo ""
     echo "This script should be run with the privileges necessary for writing"
     echo "to the locations selected."
@@ -145,15 +156,40 @@ while [ -n "$1" ] ; do
         -h | --home | --rmhome ) shift
                                 RMHOME="$1"
                                 ;;
+        -u | --uninstall )      UNINSTALL="y"
+                                ;;
         * )                     ZIP="$1"
                                 ;;
     esac
     shift
 done
 
+if [ -n "${UNINSTALL}" ] ; then
+    read -p "You sure you what to deinstall RMIR in directory ${RMHOME} (y/n)? " ans
+    if [ "${ans}" != "y" ] ; then
+        echo "Bailing out, nothing deleted."
+        exit 0
+    fi
+
+    rm -rf "${RMHOME}"
+
+    for c in ${COMMANDS}; do
+        upper="$(echo $c | tr '[a-z]' '[A-Z]')"
+        rm  -f ${DESKTOPDIR}/$upper.desktop
+        rm -f ${LINKDIR}/$c
+    done
+    rm -f ${LINKDIR}/remotemaster
+
+    echo "RMIR and friends successfully uninstalled."
+    echo "Personal configuration files have not been deleted."
+    exit 0
+fi
+
 if [ -z ${ZIP} ] ; then
-    wget -O "${DOWNLOAD}" $URL
-    ZIP=$DOWNLOAD
+    echo "Downloading ${URL} from SourceForge or a mirror..."
+    wget --no-verbose -O "${DOWNLOAD}" ${URL}  || exit 1
+    ZIP=${DOWNLOAD}
+    DID_DOWNLOAD=yes
 fi
 
 if [ ! -d "${RMHOME}" ] ; then
@@ -173,22 +209,23 @@ if [ ! -d ${LINKDIR} ] ; then
     mkdir -p ${LINKDIR} || exit 1
 fi
 
-mklink ${RMHOME}/rmir.sh ${LINKDIR}/rmir
-mklink ${RMHOME}/rmir.sh ${LINKDIR}/remotemaster
-mklink ${RMHOME}/rmir.sh ${LINKDIR}/rmdu
-mklink ${RMHOME}/rmir.sh ${LINKDIR}/rmpb
-
-fixdesktop RMDU rmdu
-fixdesktop RMIR rmir
-fixdesktop RMPB rmpb
-
-# URC6440/OARUSB04G support
-if ! grep -i urc6440 /etc/fstab >/dev/null ; then
-    echo "If using URC6440/OARUSB04G, see http://www.hifi-remote.com/forums/viewtopic.php?t=102592"
+if [ ! -d ${DESKTOPDIR} ] ; then
+    mkdir -p ${DESKTOPDIR} || exit 1
 fi
 
-# XSight support
-if [ ! -f /etc/udev/rules.d/linux_xsight.rules ] ; then
-    echo "If using XSight, consider adding udev rules for XSight with the command:"
-    echo "sudo cp ${RMHOME}/linux_xsight.rules /etc/udev/rules.d"
+for c in ${COMMANDS}; do
+    mklink $c
+    fixdesktop $c
+done
+mklink remotemaster
+
+if [ -n "${DID_DOWNLOAD}" ] ; then
+    if tty --quiet ; then
+       read -p "Delete downloaded file ${ZIP} (y/n)? " ans
+        if [ "${ans}" = "y" ] ; then
+            rm ${ZIP}
+        fi
+    else
+        rm ${ZIP}
+    fi
 fi
