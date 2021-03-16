@@ -70,7 +70,6 @@ mkwrapper()
 #!/bin/sh
 #
 # Wrapper for RMDU/RMIR/RMPB on Unix-like system
-# Makes the program(s) Freedisktop compatible.
 
 # Set JAVA to the command that should be used to invoke the program,
 # can be absolute or sought in the path.
@@ -80,7 +79,32 @@ JAVA=\${JAVA:-${JAVA}}
 SCALE_ARG=-Dsun.java2d.uiScale=\${SCALE_FACTOR:-${SCALE_FACTOR}}
 
 export RMHOME="\$(dirname -- "\$(readlink -f -- "\${0}")" )"
+cd "\${RMHOME}"
 
+if [ "\$(basename "\$0")" = "rmir" -o "\$(basename "\$0")" = "rmir.sh" ] ; then
+    ARG=-ir
+elif [ "\$(basename "\$0")" = "rmpb" ] ; then
+    ARG=-pb
+else
+    ARG=-rm
+fi
+
+if [ \$# -gt 0 ] ; then
+    FILES=\$(realpath "\$@")
+fi
+
+EOF
+
+if [ -n "${WRITEABLE}" ] ; then
+    cat >> ${WRAPPER} <<EOF
+exec "\${JAVA}" \${SCALE_ARG} -Djava.library.path="\${RMHOME}" \\
+     -jar "\${RMHOME}/RemoteMaster.jar" \\
+     -h "\${RMHOME}" \${ARG} \\
+     \${FILES}
+EOF
+else
+    cat >> ${WRAPPER} <<EOF
+# Making the program(s) Freedisktop compatible.
 XDG_CONFIG_HOME=\${XDG_CONFIG_HOME:-\${HOME}/.config}
 XDG_CACHE_HOME=\${XDG_CACHE_HOME:-\${HOME}/.cache}
 
@@ -96,26 +120,13 @@ fi
 
 CONFIG=\${CONFIG_HOME}/properties
 
-if [ "\$(basename "\$0")" = "rmir" -o "\$(basename "\$0")" = "rmir.sh" ] ; then
-    ARG=-ir
-elif [ "\$(basename "\$0")" = "rmpb" ] ; then
-    ARG=-pb
-else
-    ARG=-rm
-fi
-
-if [ \$# -gt 0 ] ; then
-    FILES=\$(realpath "\$@")
-fi
-
-cd "\$RMHOME"
-
 exec "\${JAVA}" \${SCALE_ARG} -Djava.library.path="\${RMHOME}" \\
      -jar "\${RMHOME}/RemoteMaster.jar" \\
      -h "\${RMHOME}" -properties "\${CONFIG}" \\
      -errors "\${CACHE_HOME}/rmaster.err" \${ARG} \\
      \${FILES}
 EOF
+fi
 
     chmod +x ${WRAPPER}
     echo "Created wrapper ${WRAPPER}."
@@ -147,6 +158,7 @@ usage()
     echo "    -h, --rmhome RM-install-dir       Directory in which to install, default ${RMHOME}."
     echo "    -l, --link directory-for-links    Directory in which to create start links, default ${LINKDIR}."
     echo "    -u, --uninstall                   Undo previous installation."
+    echo "    -w, --writeable-install           Write config and logs in installation directory."
     echo ""
     echo "This script should be run with the privileges necessary for writing"
     echo "to the locations selected."
@@ -172,6 +184,8 @@ while [ -n "$1" ] ; do
                                 RMHOME="$1"
                                 ;;
         -u | --uninstall )      UNINSTALL="y"
+                                ;;
+        -w | --writeable-install ) WRITEABLE="y"
                                 ;;
         * )                     ZIP="$1"
                                 ;;
