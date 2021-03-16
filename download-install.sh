@@ -41,8 +41,11 @@ fi
 # URL for downloading current version.
 URL=https://sourceforge.net/projects/controlremote/files/latest/download
 
+INDEX_URL=https://sourceforge.net/projects/controlremote/files/RMIRDevelopment/
+
 # Temporary file to download to
 DOWNLOAD=${TMPDIR:-/tmp}/${PROJECT}$$.zip
+INDEX_DOWNLOAD=${TMPDIR:-/tmp}/${PROJECT}_index$$
 
 # Generated wrapper
 WRAPPER=${RMHOME}/${PROJECT}.sh
@@ -128,6 +131,7 @@ usage()
     echo "${URL}."
     echo ""
     echo "Options:"
+    echo "    -d, --development                 Try to download from the development folder instead of \"latest\"."
     echo "    -?, --help                        Display this help and exit."
     echo "    -j, --java command-for-java       Command to invoke Java, default \"${JAVA}\"."
     echo "    -s, --scale scale-factor          scale factor for the GUI, default ${SCALE_FACTOR}. Not supported by all JVMs."
@@ -141,6 +145,8 @@ usage()
 
 while [ -n "$1" ] ; do
     case $1 in
+        -d | --development )    DEVELOPMENT="y"
+                                ;;
         -\? | --help )          usage
                                 exit 0
                                 ;;
@@ -165,7 +171,7 @@ while [ -n "$1" ] ; do
 done
 
 if [ -n "${UNINSTALL}" ] ; then
-    read -p "You sure you what to deinstall RMIR in directory ${RMHOME} (y/n)? " ans
+    read -p "You sure you want to deinstall RMIR in directory ${RMHOME} (y/n)? " ans
     if [ "${ans}" != "y" ] ; then
         echo "Bailing out, nothing deleted."
         exit 0
@@ -185,6 +191,22 @@ if [ -n "${UNINSTALL}" ] ; then
     exit 0
 fi
 
+if [ -n "${DEVELOPMENT}" ] ; then
+    if [ -n "${ZIP}" ] ; then
+        echo "Must not use --development together with file name"
+        exit 1
+    fi
+
+    # Download the index file and parse it.
+    # This is not a well-formed XML file (it is HTML, with "junk" within <script> elements),
+    # so we have to parse it in an ad-hoc way. This code is of course somewhat fragile.
+    wget --no-verbose -O "${INDEX_DOWNLOAD}" "${INDEX_URL}"
+    URL=$(grep 'https://sourceforge.net/projects/controlremote/files/RMIRDevelopment/RMIR\.v2.*-bin.zip/download' "${INDEX_DOWNLOAD}" \
+        | grep scope \
+        | sed -e 's/<th scope="row" headers="files_name_h"><a href="//' -e 's/"//' -e 's/^ +//')
+    rm -f "${INDEX_DOWNLOAD}"
+fi
+
 if [ -z ${ZIP} ] ; then
     echo "Downloading ${URL} from SourceForge or a mirror..."
     wget --no-verbose -O "${DOWNLOAD}" ${URL}  || exit 1
@@ -201,7 +223,8 @@ rm -rf * || exit 1
 unzip -q "${ZIP}" || exit 1
 
 # Invoke RMIR's setup. If it fails, bail out.
-sh ./setup.sh || exit 1
+# Since we are setting scaling in the wrapper, make the setup script non-interactive.
+sh ./setup.sh < /dev/null || exit 1
 
 mkwrapper
 
