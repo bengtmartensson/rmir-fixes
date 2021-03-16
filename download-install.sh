@@ -121,6 +121,15 @@ EOF
     echo "Created wrapper ${WRAPPER}."
 }
 
+assertwget()
+{
+    if ! wget --version > /dev/null ; then
+        echo "The command \"wget\" is missing or broken."
+        echo "Please install it, for example with apt-get or dnf."
+        exit 1
+    fi
+}
+
 usage()
 {
     echo "Usage: $0 [OPTIONS] [zip-file]"
@@ -200,6 +209,7 @@ if [ -n "${DEVELOPMENT}" ] ; then
     # Download the index file and parse it.
     # This is not a well-formed XML file (it is HTML, with "junk" within <script> elements),
     # so we have to parse it in an ad-hoc way. This code is of course somewhat fragile.
+    assertwget
     wget --no-verbose -O "${INDEX_DOWNLOAD}" "${INDEX_URL}"
     URL=$(grep 'https://sourceforge.net/projects/controlremote/files/RMIRDevelopment/RMIR\.v2.*-bin.zip/download' "${INDEX_DOWNLOAD}" \
         | grep scope \
@@ -208,6 +218,8 @@ if [ -n "${DEVELOPMENT}" ] ; then
 fi
 
 if [ -z ${ZIP} ] ; then
+    assertwget
+
     echo "Downloading ${URL} from SourceForge or a mirror..."
     wget --no-verbose -O "${DOWNLOAD}" ${URL}  || exit 1
     ZIP=${DOWNLOAD}
