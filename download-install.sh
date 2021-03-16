@@ -152,7 +152,7 @@ usage()
     echo ""
     echo "Options:"
     echo "    -d, --development                 Try to download from the development folder instead of \"latest\"."
-    echo "    -?, --help                        Display this help and exit."
+    echo "    -?, -h, --help                    Display this help and exit."
     echo "    -j, --java command-for-java       Command to invoke Java, default \"${JAVA}\"."
     echo "    -s, --scale scale-factor          scale factor for the GUI, default ${SCALE_FACTOR}. Not supported by all JVMs."
     echo "    -h, --rmhome RM-install-dir       Directory in which to install, default ${RMHOME}."
@@ -168,7 +168,7 @@ while [ -n "$1" ] ; do
     case $1 in
         -d | --development )    DEVELOPMENT="y"
                                 ;;
-        -\? | --help )          usage
+        -\? | -h | --help )     usage
                                 exit 0
                                 ;;
         -j | --java )           shift
@@ -273,6 +273,8 @@ if [ -n "${DID_DOWNLOAD}" ] ; then
        read -p "Delete downloaded file ${ZIP} (y/n)? " ans
         if [ "${ans}" = "y" ] ; then
             rm ${ZIP}
+        else
+            echo "You can tweak the installation with the command \"$0 [options] ${ZIP}\"."
         fi
     else
         rm ${ZIP}
