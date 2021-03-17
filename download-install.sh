@@ -79,7 +79,6 @@ JAVA=\${JAVA:-${JAVA}}
 SCALE_ARG=-Dsun.java2d.uiScale=\${SCALE_FACTOR:-${SCALE_FACTOR}}
 
 export RMHOME="\$(dirname -- "\$(readlink -f -- "\${0}")" )"
-cd "\${RMHOME}"
 
 if [ "\$(basename "\$0")" = "rmir" -o "\$(basename "\$0")" = "rmir.sh" ] ; then
     ARG=-ir
@@ -89,10 +88,6 @@ else
     ARG=-rm
 fi
 
-if [ \$# -gt 0 ] ; then
-    FILES=\$(realpath "\$@")
-fi
-
 EOF
 
 if [ -n "${WRITEABLE}" ] ; then
@@ -100,7 +95,7 @@ if [ -n "${WRITEABLE}" ] ; then
 exec "\${JAVA}" \${SCALE_ARG} -Djava.library.path="\${RMHOME}" \\
      -jar "\${RMHOME}/RemoteMaster.jar" \\
      -h "\${RMHOME}" \${ARG} \\
-     \${FILES}
+     "\$@"
 EOF
 else
     cat >> ${WRAPPER} <<EOF
@@ -124,7 +119,7 @@ exec "\${JAVA}" \${SCALE_ARG} -Djava.library.path="\${RMHOME}" \\
      -jar "\${RMHOME}/RemoteMaster.jar" \\
      -h "\${RMHOME}" -properties "\${CONFIG}" \\
      -errors "\${CACHE_HOME}/rmaster.err" \${ARG} \\
-     \${FILES}
+     "\$@"
 EOF
 fi
 
