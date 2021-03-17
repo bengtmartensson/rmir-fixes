@@ -53,7 +53,7 @@ WRAPPER=${RMHOME}/${PROJECT}.sh
 fixdesktop()
 {
     upper="$(echo $1 | tr '[a-z]' '[A-Z]')"
-    sed -e "s|Exec=.*|Exec=${LINKDIR}/${1}|" -e "s/Categories=.*/Categories=AudioVideo;/" "${RMHOME}/$upper.desktop" > ${DESKTOPDIR}/$upper.desktop
+    sed -e "s|Exec=.*|Exec=${LINKDIR}/${1}|" "${RMHOME}/$upper.desktop" > ${DESKTOPDIR}/$upper.desktop
 }
 
 mklink()
