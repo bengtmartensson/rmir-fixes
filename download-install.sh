@@ -15,21 +15,6 @@ if [ $(id -u) -eq 0 ] ; then
 else
     PREFIX=${HOME}
 fi
-RMHOME=${PREFIX}/share/${PROJECT}
-
-# Where the executable links go.
-# Can be overridden from the command line.
-LINKDIR=${PREFIX}/bin
-
-# Command to invoke the Java JVM. Can be an absolute or relative file name,
-# or a command sought in the PATH.
-# Can be overridden from the command line.
-JAVA=java
-
-# Scaling factor for the GUI. Does not work with all JVMs;
-# some JVMs accept only integer arguments.
-# Can be overridden from the command line.
-SCALE_FACTOR=1
 
 # Where the desktop files go
 if [ $(id -u) -eq 0 ] ; then
@@ -46,9 +31,6 @@ INDEX_URL=https://sourceforge.net/projects/controlremote/files/RMIRDevelopment/
 # Temporary file to download to
 DOWNLOAD=${TMPDIR:-/tmp}/${PROJECT}$$.zip
 INDEX_DOWNLOAD=${TMPDIR:-/tmp}/${PROJECT}_index$$
-
-# Generated wrapper
-WRAPPER=${RMHOME}/${PROJECT}.sh
 
 fixdesktop()
 {
@@ -150,7 +132,7 @@ usage()
     echo "    -?, -h, --help                    Display this help and exit."
     echo "    -j, --java command-for-java       Command to invoke Java, default \"${JAVA}\"."
     echo "    -s, --scale scale-factor          scale factor for the GUI, default ${SCALE_FACTOR}. Not supported by all JVMs."
-    echo "    -h, --rmhome RM-install-dir       Directory in which to install, default ${RMHOME}."
+    echo "    -H, --rmhome RM-install-dir       Directory in which to install, default ${RMHOME}."
     echo "    -l, --link directory-for-links    Directory in which to create start links, default ${LINKDIR}."
     echo "    -u, --uninstall                   Undo previous installation."
     echo "    -w, --writeable-install           Write config and logs in installation directory."
@@ -175,8 +157,8 @@ while [ -n "$1" ] ; do
         -l | --linkdir )        shift
                                 LINKDIR="$1"
                                 ;;
-        -h | --home | --rmhome ) shift
-                                RMHOME="$1"
+        -H | --home | --rmhome ) shift
+                                RMHOME=$(realpath "$1")
                                 ;;
         -u | --uninstall )      UNINSTALL="y"
                                 ;;
@@ -187,6 +169,30 @@ while [ -n "$1" ] ; do
     esac
     shift
 done
+
+if [ -z "$RMHOME" ] ; then
+    RMHOME=${PREFIX}/share/${PROJECT}
+fi
+
+# Generated wrapper
+WRAPPER=${RMHOME}/${PROJECT}.sh
+
+# Where the executable links go.
+if [ -z "$LINKDIR" ] ; then
+    LINKDIR=${PREFIX}/bin
+fi
+
+# Scaling factor for the GUI. Does not work with all JVMs;
+# some JVMs accept only integer arguments.
+if [ -z "$SCALE_FACTOR" ] ; then
+    SCALE_FACTOR=1
+fi
+
+# Command to invoke the Java JVM. Can be an absolute or relative file name,
+# or a command sought in the PATH.
+if [ -z "$JAVA" ] ; then
+    JAVA=java
+fi
 
 if [ -n "${UNINSTALL}" ] ; then
     read -p "You sure you want to deinstall RMIR in directory ${RMHOME} (y/n)? " ans
@@ -222,7 +228,8 @@ if [ -n "${DEVELOPMENT}" ] ; then
     wget --no-verbose -O "${INDEX_DOWNLOAD}" "${INDEX_URL}"
     URL=$(grep 'https://sourceforge.net/projects/controlremote/files/RMIRDevelopment/RMIR\.v2.*-bin.zip/download' "${INDEX_DOWNLOAD}" \
         | grep scope \
-        | sed -e 's/<th scope="row" headers="files_name_h"><a href="//' -e 's/"//' -e 's/^ +//')
+        | sed -e 's/<th scope="row" headers="files_name_h"><a href="//' -e 's/"//' -e 's/^ +//' \
+        | head --lines 1)
     rm -f "${INDEX_DOWNLOAD}"
 fi
 
