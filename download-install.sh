@@ -212,7 +212,17 @@ if [ -n "${UNINSTALL}" ] ; then
     rm -f ${LINKDIR}/remotemaster
 
     echo "RMIR and friends successfully uninstalled."
-    echo "Personal configuration files have not been deleted."
+    read -p "Want to delete the error file and your personal preferences (y/n)? " ans
+    if [ "${ans}" = "y" ] ; then
+        XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-${HOME}/.config}
+        XDG_CACHE_HOME=${XDG_CACHE_HOME:-${HOME}/.cache}
+        CACHE_HOME=${XDG_CACHE_HOME}/${PROJECT}
+        CONFIG_HOME=${XDG_CONFIG_HOME}/${PROJECT}
+        CONFIG=${CONFIG_HOME}/properties
+        rm -f "${CONFIG}" "${CACHE_HOME}/rmaster.err"
+    else
+        echo "Personal configuration files have not been deleted."
+    fi
     exit 0
 fi
 
