@@ -118,6 +118,28 @@ assertwget()
     fi
 }
 
+# Command to invoke the Java JVM. Can be an absolute or relative file name,
+# or a command sought in the PATH.
+if [ -z "$JAVA" ] ; then
+    JAVA=java
+fi
+
+# Scaling factor for the GUI. Does not work with all JVMs;
+# some JVMs accept only integer arguments.
+if [ -z "$SCALE_FACTOR" ] ; then
+    SCALE_FACTOR=1
+fi
+
+# Where to install the files
+if [ -z "$RMHOME" ] ; then
+    RMHOME=${PREFIX}/share/${PROJECT}
+fi
+
+# Where the executable links go.
+if [ -z "$LINKDIR" ] ; then
+    LINKDIR=${PREFIX}/bin
+fi
+
 usage()
 {
     echo "Usage: $0 [OPTIONS] [zip-file]"
@@ -170,29 +192,8 @@ while [ -n "$1" ] ; do
     shift
 done
 
-if [ -z "$RMHOME" ] ; then
-    RMHOME=${PREFIX}/share/${PROJECT}
-fi
-
 # Generated wrapper
 WRAPPER=${RMHOME}/${PROJECT}.sh
-
-# Where the executable links go.
-if [ -z "$LINKDIR" ] ; then
-    LINKDIR=${PREFIX}/bin
-fi
-
-# Scaling factor for the GUI. Does not work with all JVMs;
-# some JVMs accept only integer arguments.
-if [ -z "$SCALE_FACTOR" ] ; then
-    SCALE_FACTOR=1
-fi
-
-# Command to invoke the Java JVM. Can be an absolute or relative file name,
-# or a command sought in the PATH.
-if [ -z "$JAVA" ] ; then
-    JAVA=java
-fi
 
 if [ -n "${UNINSTALL}" ] ; then
     read -p "You sure you want to deinstall RMIR in directory ${RMHOME} (y/n)? " ans
