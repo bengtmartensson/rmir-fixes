@@ -239,7 +239,7 @@ if [ -n "${DEVELOPMENT}" ] ; then
     wget --no-verbose -O "${INDEX_DOWNLOAD}" "${INDEX_URL}"
     URL=$(grep 'https://sourceforge.net/projects/controlremote/files/RMIRDevelopment/RMIR\.v2.*-bin.zip/download' "${INDEX_DOWNLOAD}" \
         | grep scope \
-        | sed -e 's/<th scope="row" headers="files_name_h"><a href="//' -e 's/"//' -e 's/^ +//' \
+        | sed -e 's/<th scope="row" headers="files_name_h"><a href="//' -e 's/"//' -e 's/^ +//' -e 's/title=.*$//' \
         | head --lines 1)
     rm -f "${INDEX_DOWNLOAD}"
 fi
