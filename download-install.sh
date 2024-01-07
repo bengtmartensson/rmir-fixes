@@ -237,7 +237,7 @@ if [ -n "${DEVELOPMENT}" ] ; then
     # so we have to parse it in an ad-hoc way. This code is of course somewhat fragile.
     assertwget
     wget --no-verbose -O "${INDEX_DOWNLOAD}" "${INDEX_URL}"
-    URL=$(grep 'https://sourceforge.net/projects/controlremote/files/RMIRDevelopment/RMIR\.v2.*-bin.zip/download' "${INDEX_DOWNLOAD}" \
+    URL=$(grep 'https://sourceforge.net/projects/controlremote/files/RMIRDevelopment/RMIR\.v3.*-bin.zip/download' "${INDEX_DOWNLOAD}" \
         | grep scope \
         | sed -e 's/<th scope="row" headers="files_name_h"><a href="//' -e 's/"//' -e 's/^ +//' -e 's/title=.*$//' \
         | head --lines 1)
@@ -260,6 +260,7 @@ fi
 cd "${RMHOME}" || exit 1
 rm -rf * || exit 1
 unzip -q "${ZIP}" || exit 1
+echo "Unpacked to directory ${RMHOME}".
 
 # Invoke RMIR's setup. If it fails, bail out.
 # Since we are setting scaling in the wrapper, make the setup script non-interactive.
@@ -287,7 +288,7 @@ if [ -n "${DID_DOWNLOAD}" ] ; then
         if [ "${ans}" = "y" ] ; then
             rm ${ZIP}
         else
-            echo "You can tweak the installation with the command \"$0 [options] ${ZIP}\"."
+            echo "You can tweak the installation (without new download) with the command \"$0 [options] ${ZIP}\"."
         fi
     else
         rm ${ZIP}
