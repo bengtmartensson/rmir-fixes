@@ -76,7 +76,7 @@ if [ -n "${WRITEABLE}" ] ; then
     cat >> ${WRAPPER} <<EOF
 exec "\${JAVA}" \${SCALE_ARG} -Djava.library.path="\${RMHOME}" \\
      -jar "\${RMHOME}/RemoteMaster.jar" \\
-     -h "\${RMHOME}" \${ARG} \\
+     -home "\${RMHOME}" \${ARG} \\
      "\$@"
 EOF
 else
@@ -99,7 +99,7 @@ CONFIG=\${CONFIG_HOME}/properties
 
 exec "\${JAVA}" \${SCALE_ARG} -Djava.library.path="\${RMHOME}" \\
      -jar "\${RMHOME}/RemoteMaster.jar" \\
-     -h "\${RMHOME}" -properties "\${CONFIG}" \\
+     -home "\${RMHOME}" -properties "\${CONFIG}" \\
      -errors "\${CACHE_HOME}/rmaster.err" \${ARG} \\
      "\$@"
 EOF
