@@ -58,8 +58,6 @@ mkwrapper()
 # Presently, at least Java version 8 is needed.
 JAVA=\${JAVA:-${JAVA}}
 
-SCALE_ARG=-Dsun.java2d.uiScale=\${SCALE_FACTOR:-${SCALE_FACTOR}}
-
 export RMHOME="\$(dirname -- "\$(readlink -f -- "\${0}")" )"
 
 if [ "\$(basename "\$0")" = "rmir" -o "\$(basename "\$0")" = "rmir.sh" ] ; then
@@ -72,11 +70,17 @@ fi
 
 EOF
 
+if [ -n "${SCALE_FACTOR}" ] ; then
+    echo "# Scaling factor" >> ${WRAPPER}
+    echo "SCALE_ARG=\"-scaling ${SCALE_FACTOR}\"" >> ${WRAPPER}
+    echo "" >> ${WRAPPER}
+fi
+
 if [ -n "${WRITEABLE}" ] ; then
     cat >> ${WRAPPER} <<EOF
-exec "\${JAVA}" \${SCALE_ARG} -Djava.library.path="\${RMHOME}" \\
+exec "\${JAVA}" -Djava.library.path="\${RMHOME}" \\
      -jar "\${RMHOME}/RemoteMaster.jar" \\
-     -home "\${RMHOME}" \${ARG} \\
+     -home "\${RMHOME}" \${ARG} \${SCALE_ARG} \\
      "\$@"
 EOF
 else
@@ -97,10 +101,10 @@ fi
 
 CONFIG=\${CONFIG_HOME}/properties
 
-exec "\${JAVA}" \${SCALE_ARG} -Djava.library.path="\${RMHOME}" \\
+exec "\${JAVA}" -Djava.library.path="\${RMHOME}" \\
      -jar "\${RMHOME}/RemoteMaster.jar" \\
      -home "\${RMHOME}" -properties "\${CONFIG}" \\
-     -errors "\${CACHE_HOME}/rmaster.err" \${ARG} \\
+     -errors "\${CACHE_HOME}/rmaster.err" \${ARG} \${SCALE_ARG} \\
      "\$@"
 EOF
 fi
@@ -122,12 +126,6 @@ assertwget()
 # or a command sought in the PATH.
 if [ -z "$JAVA" ] ; then
     JAVA=java
-fi
-
-# Scaling factor for the GUI. Does not work with all JVMs;
-# some JVMs accept only integer arguments.
-if [ -z "$SCALE_FACTOR" ] ; then
-    SCALE_FACTOR=1
 fi
 
 # Where to install the files
@@ -153,7 +151,7 @@ usage()
     echo "    -d, --development                 Try to download from the development folder instead of \"latest\"."
     echo "    -?, -h, --help                    Display this help and exit."
     echo "    -j, --java command-for-java       Command to invoke Java, default \"${JAVA}\"."
-    echo "    -s, --scale scale-factor          scale factor for the GUI, default ${SCALE_FACTOR}. Not supported by all JVMs."
+    echo "    -s, --scale scale-factor          scale factor for the GUI, default 1. Not supported by all JVMs."
     echo "    -H, --rmhome RM-install-dir       Directory in which to install, default ${RMHOME}."
     echo "    -l, --link directory-for-links    Directory in which to create start links, default ${LINKDIR}."
     echo "    -u, --uninstall                   Undo previous installation."
