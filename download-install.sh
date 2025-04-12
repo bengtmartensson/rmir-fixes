@@ -6,7 +6,7 @@
 # License: public domain
 
 PROJECT=rmir
-COMMANDS="rmir rmdu rmpb"
+COMMANDS="rmir rmdu rmpb remotemaster irptransmogrifier"
 
 # Where the files are installed, modify if desired.
 # Can be overridden from the command line.
@@ -32,26 +32,91 @@ INDEX_URL=https://sourceforge.net/projects/controlremote/files/RMIRDevelopment/
 DOWNLOAD=${TMPDIR:-/tmp}/${PROJECT}$$.zip
 INDEX_DOWNLOAD=${TMPDIR:-/tmp}/${PROJECT}_index$$
 
-fixdesktop()
+mkdesktop()
 {
     upper="$(echo $1 | tr '[a-z]' '[A-Z]')"
-    sed -e "s|Exec=.*|Exec=${LINKDIR}/${1}|" "${RMHOME}/$upper.desktop" > ${DESKTOPDIR}/$upper.desktop
+    # Construct paths to the new files and to the jar file
+    desktop_file=${RMHOME}/${upper}.desktop
+
+    # Create the .desktop files.
+    cat > "$desktop_file" << EOF
+[Desktop Entry]
+Comment=$2
+Categories=AudioVideo
+Terminal=false
+Name=${upper}
+Exec="${LINKDIR}/$1"
+Type=Application
+Icon=${RMHOME}/${upper}.ico
+StartupNotify=true
+Version=1.0
+EOF
+
+    ln -sf "$desktop_file" "${DESKTOPDIR}"
+}
+
+assert_dialout()
+{
+    # Test if the dialout group exists, exit with message if not
+    if ! grep -q dialout /etc/group ; then
+        echo "There is no group named \"dialout\" on your system." \
+             "Access to serial devices cannot be guaranteed."
+        return
+    fi
+
+    # Dialout group exists, test if user is a member, exit if so
+    if id -Gn | grep -q dialout ; then
+        return
+    fi
+
+    # User is not a member, test if user is root, exit if so
+    if [ "$(id -u)" -eq 0 ]; then
+        return
+    fi
+
+    # User is not root, so ask if user wishes to be added
+    if ! modify_user ; then
+        echo "You will need to run the command \"sudo usermod -aG dialout $USER\" " \
+             "before \"$USER\" can use a USB serial interface with RMIR. " \
+             "Then you need to log out and log in again for the change to take effect."
+    fi
+}
+
+modify_user()
+{
+    # If no terminal access, bail out
+    if ! tty --quiet ; then
+        return 1
+    fi
+
+    echo "To use a USB serial interface with RMIR, \"$USER\" needs to be a member of the " \
+         "dialout group, which is currently not so. This script can add \"$USER\" " \
+         "to that group using sudo."
+
+    read -p "Add \"$USER\" to group \"dialout\" (y/n)? " ans
+    if [ "${ans}" = "y" ] ; then
+        sudo usermod -aG dialout $USER || return 1
+        echo "You will need to log out and log in again for the change to take effect."
+        return 0
+    else
+        return 1
+    fi
 }
 
 mklink()
 {
-    if [ $(readlink -f -- "$1") != "${WRAPPER}" ] ; then
-	ln --symbolic --force $(realpath --relative-to="${LINKDIR}" "${WRAPPER}") "${LINKDIR}/$1"
+    if [ "$(readlink -f -- "$1")" != "${WRAPPER}" ] ; then
+	ln --symbolic --force "$(realpath --relative-to="${LINKDIR}" "${WRAPPER}")" "${LINKDIR}/$1"
         echo "Command $1 created."
     fi
 }
 
 mkwrapper()
 {
-    cat > ${WRAPPER} <<EOF
+    cat > "${WRAPPER}" <<EOF
 #!/bin/sh
 #
-# Wrapper for RMDU/RMIR/RMPB on Unix-like system
+# Wrapper for RMDU/RMIR/RMPB/irptransmogrifier on Unix-like system
 
 # Set JAVA to the command that should be used to invoke the program,
 # can be absolute or sought in the path.
@@ -59,6 +124,15 @@ mkwrapper()
 JAVA=\${JAVA:-${JAVA}}
 
 export RMHOME="\$(dirname -- "\$(readlink -f -- "\${0}")" )"
+JAR=\${RMHOME}/RemoteMaster.jar
+
+if [ "\$(basename "\$0")" = "irptransmogrifier" ] ; then
+    MAINCLASS=org.harctoolbox.irp.IrpTransmogrifier
+    exec "\${JAVA}" \\
+         -cp "\${JAR}" \\
+         "\${MAINCLASS}" \\
+         "\$@" # does not return
+fi
 
 if [ "\$(basename "\$0")" = "rmir" -o "\$(basename "\$0")" = "rmir.sh" ] ; then
     ARG=-ir
@@ -84,7 +158,7 @@ exec "\${JAVA}" -Djava.library.path="\${RMHOME}" \\
      "\$@"
 EOF
 else
-    cat >> ${WRAPPER} <<EOF
+    cat >> "${WRAPPER}" <<EOF
 # Making the program(s) Freedisktop compatible.
 XDG_CONFIG_HOME=\${XDG_CONFIG_HOME:-\${HOME}/.config}
 XDG_CACHE_HOME=\${XDG_CACHE_HOME:-\${HOME}/.cache}
@@ -102,15 +176,15 @@ fi
 CONFIG=\${CONFIG_HOME}/properties
 
 exec "\${JAVA}" -Djava.library.path="\${RMHOME}" \\
-     -jar "\${RMHOME}/RemoteMaster.jar" \\
+     -jar "\${JAR}" \\
      -home "\${RMHOME}" -properties "\${CONFIG}" \\
      -errors "\${CACHE_HOME}/rmaster.err" \${ARG} \${SCALE_ARG} \\
      "\$@"
 EOF
 fi
 
-    chmod +x ${WRAPPER}
-    echo "Created wrapper ${WRAPPER}."
+    chmod +x "${WRAPPER}"
+    echo "Created wrapper \"${WRAPPER}\"."
 }
 
 assertwget()
@@ -178,7 +252,7 @@ while [ -n "$1" ] ; do
                                 LINKDIR="$1"
                                 ;;
         -H | --home | --rmhome ) shift
-                                RMHOME=$(realpath "$1")
+                                RMHOME=$(realpath --canonicalize-missing "$1")
                                 ;;
         -u | --uninstall )      UNINSTALL="y"
                                 ;;
@@ -204,8 +278,8 @@ if [ -n "${UNINSTALL}" ] ; then
 
     for c in ${COMMANDS}; do
         upper="$(echo $c | tr '[a-z]' '[A-Z]')"
-        rm  -f ${DESKTOPDIR}/$upper.desktop
-        rm -f ${LINKDIR}/$c
+        rm -f "${DESKTOPDIR}/$upper.desktop"
+        rm -f "${LINKDIR}/$c"
     done
     rm -f ${LINKDIR}/remotemaster
 
@@ -260,25 +334,36 @@ rm -rf * || exit 1
 unzip -q "${ZIP}" || exit 1
 echo "Unpacked to directory ${RMHOME}".
 
-# Invoke RMIR's setup. If it fails, bail out.
-# Since we are setting scaling in the wrapper, make the setup script non-interactive.
-sh ./setup.sh < /dev/null || exit 1
-
 mkwrapper
 
-if [ ! -d ${LINKDIR} ] ; then
-    mkdir -p ${LINKDIR} || exit 1
+if [ ! -d "${LINKDIR}" ] ; then
+    mkdir -p "${LINKDIR}" || exit 1
 fi
 
-if [ ! -d ${DESKTOPDIR} ] ; then
-    mkdir -p ${DESKTOPDIR} || exit 1
+if [ ! -d "${DESKTOPDIR}" ] ; then
+    mkdir -p "${DESKTOPDIR}" || exit 1
 fi
 
+mkdesktop rmir "Edit JP1 remotes"
+mkdesktop rmdu "Edit JP1 device upgrades"
+mkdesktop rmpb "Edit JP1 protocols"
 for c in ${COMMANDS}; do
     mklink $c
-    fixdesktop $c
 done
-mklink remotemaster
+echo "Desktop files created and linked."
+
+assert_dialout
+
+# URC6440/OARUSB04G support
+if [ ! -f /etc/udev/rules.d/6440-usbremote.rules ] ; then
+    echo "If using URC6440/OARUSB04G, see \"${RMHOME}/URC6440_OARUSB04G_LinuxSupport/Instructions.txt\""
+fi
+
+# XSight support
+if [ ! -f /etc/udev/rules.d/linux_xsight.rules ] ; then
+    echo "If using XSight, consider adding udev rules for XSight with the command:"
+    echo "sudo cp \"${RMHOME}/linux_xsight.rules /etc/udev/rules.d\""
+fi
 
 if [ -n "${DID_DOWNLOAD}" ] ; then
     if tty --quiet ; then
